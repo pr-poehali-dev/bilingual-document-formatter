@@ -34,7 +34,7 @@ const Index = () => {
         description: `Файл "${file.name}" успешно загружен`,
       });
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
   };
 
   const handleTranslate = async () => {
@@ -87,7 +87,7 @@ const Index = () => {
     
     setTimeout(() => {
       const content = `ОРИГИНАЛ (Русский)\n\n${originalText}\n\n\nПЕРЕВОД (English)\n\n${translatedText}`;
-      const blob = new Blob([content], { type: 'text/plain' });
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
