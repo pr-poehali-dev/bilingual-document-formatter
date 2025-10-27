@@ -21,20 +21,27 @@ const Index = () => {
   const [history, setHistory] = useState<Translation[]>([]);
   const { toast } = useToast();
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(arrayBuffer);
+      
       setOriginalText(text);
       toast({
         title: 'Документ загружен',
         description: `Файл "${file.name}" успешно загружен`,
       });
-    };
-    reader.readAsText(file, 'UTF-8');
+    } catch (error) {
+      toast({
+        title: 'Ошибка загрузки',
+        description: 'Не удалось прочитать файл',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleTranslate = async () => {
