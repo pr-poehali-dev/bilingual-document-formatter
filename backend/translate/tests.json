@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "Test translation endpoint",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": "Привет мир"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "translated": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test empty text",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": ""
+      },
+      "expectedStatus": 400
+    },
+    {
+      "name": "Test OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

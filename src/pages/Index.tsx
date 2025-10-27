@@ -56,31 +56,47 @@ const Index = () => {
 
     setIsTranslating(true);
     
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const mockTranslation = originalText
-      .split('\n')
-      .map(line => `[EN] ${line}`)
-      .join('\n');
-    
-    setTranslatedText(mockTranslation);
-    
-    const newTranslation: Translation = {
-      id: Date.now().toString(),
-      original: originalText,
-      translated: mockTranslation,
-      timestamp: new Date(),
-    };
-    setHistory(prev => [newTranslation, ...prev].slice(0, 10));
-    
-    setIsTranslating(false);
-    toast({
-      title: 'Перевод завершён',
-      description: 'Текст успешно переведён на английский',
-    });
+    try {
+      const response = await fetch('https://functions.poehali.dev/beaf88d8-3157-49c8-8f7f-0815b90ba4af', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: originalText }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Translation failed');
+      }
+      
+      setTranslatedText(data.translated);
+      
+      const newTranslation: Translation = {
+        id: Date.now().toString(),
+        original: originalText,
+        translated: data.translated,
+        timestamp: new Date(),
+      };
+      setHistory(prev => [newTranslation, ...prev].slice(0, 10));
+      
+      toast({
+        title: 'Перевод завершён',
+        description: 'Текст успешно переведён на английский',
+      });
+    } catch (error) {
+      toast({
+        title: 'Ошибка перевода',
+        description: error instanceof Error ? error.message : 'Не удалось перевести текст',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
-  const handleExportDocx = () => {
+  const handleExportDocx = async () => {
     if (!translatedText) {
       toast({
         title: 'Ошибка',
@@ -92,24 +108,100 @@ const Index = () => {
 
     setIsExporting(true);
     
-    setTimeout(() => {
-      const content = `ОРИГИНАЛ (Русский)\n\n${originalText}\n\n\nПЕРЕВОД (English)\n\n${translatedText}`;
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    try {
+      const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableCell, TableRow, WidthType } = await import('docx');
+      
+      const originalLines = originalText.split('\n');
+      const translatedLines = translatedText.split('\n');
+      const maxLines = Math.max(originalLines.length, translatedLines.length);
+      
+      const tableRows = [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: 'Оригинал (Русский)', bold: true, size: 28 })],
+                  alignment: AlignmentType.CENTER,
+                })
+              ],
+              width: { size: 50, type: WidthType.PERCENTAGE },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: 'Translation (English)', bold: true, size: 28 })],
+                  alignment: AlignmentType.CENTER,
+                })
+              ],
+              width: { size: 50, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        }),
+      ];
+      
+      for (let i = 0; i < maxLines; i++) {
+        tableRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: originalLines[i] || '', size: 22 })],
+                  })
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: translatedLines[i] || '', size: 22 })],
+                  })
+                ],
+              }),
+            ],
+          })
+        );
+      }
+      
+      const doc = new Document({
+        sections: [{
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: 'Перевод документа', bold: true, size: 32 })],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 400 },
+            }),
+            new Table({
+              rows: tableRows,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        }],
+      });
+      
+      const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `translation_${Date.now()}.txt`;
+      a.download = `translation_${Date.now()}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      setIsExporting(false);
       toast({
         title: 'Документ экспортирован',
-        description: 'Файл успешно сохранён',
+        description: 'Word документ успешно сохранён',
       });
-    }, 1000);
+    } catch (error) {
+      toast({
+        title: 'Ошибка экспорта',
+        description: 'Не удалось создать документ',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const loadFromHistory = (item: Translation) => {
