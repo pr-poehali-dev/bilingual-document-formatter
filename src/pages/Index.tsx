@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import jschardet from 'jschardet';
 
 interface Translation {
   id: string;
@@ -27,13 +28,18 @@ const Index = () => {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const decoder = new TextDecoder('utf-8');
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      const detected = jschardet.detect(uint8Array);
+      const encoding = detected.encoding || 'utf-8';
+      
+      const decoder = new TextDecoder(encoding);
       const text = decoder.decode(arrayBuffer);
       
       setOriginalText(text);
       toast({
         title: 'Документ загружен',
-        description: `Файл "${file.name}" успешно загружен`,
+        description: `Файл "${file.name}" успешно загружен (${encoding})`,
       });
     } catch (error) {
       toast({
